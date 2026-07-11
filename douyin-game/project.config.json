@@ -1,0 +1,10 @@
+{
+  "setting": {
+    "es6": true,
+    "postcss": true,
+    "minified": true,
+    "enhance": true
+  },
+  "compileType": "game",
+  "appid": "tte0e2965f7e875b5702"
+}

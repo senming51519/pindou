@@ -1,0 +1,1571 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拼豆配对</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: linear-gradient(135deg, #e0f7fa 0%, #f3e5f5 50%, #fff8e1 100%);
+  min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px;
+}
+.game-wrap {
+  background: rgba(255,255,255,0.88); backdrop-filter: blur(16px); border-radius: 28px;
+  padding: 16px 24px 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.10); max-width: 900px; width: 100%;
+}
+h1 { text-align: center; font-size: 22px; color: #4a148c; margin-bottom: 10px; }
+h1 span { background: linear-gradient(45deg, #e91e63, #9c27b0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+.ref-section {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
+  background: #f8f8ff; border-radius: 16px; padding: 8px 14px;
+}
+.ref-section .label { font-size: 13px; color: #888; white-space: nowrap; }
+#refCanvas { border-radius: 8px; border: 2px solid #ddd; width: 100px; height: 100px; flex-shrink: 0; }
+.ref-hint { font-size: 12px; color: #999; line-height: 1.4; }
+
+.toolbar {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; align-items: center;
+}
+.toolbar button {
+  padding: 6px 14px; border: none; border-radius: 16px; background: #f0f0f5;
+  cursor: pointer; font-size: 13px; transition: all 0.2s; color: #444;
+}
+.toolbar button:hover { background: #e0e0ea; transform: translateY(-1px); }
+.toolbar .sep { width: 1px; height: 24px; background: #ddd; margin: 0 4px; }
+.toolbar .stats { margin-left: auto; font-size: 13px; color: #888; }
+.toolbar .stats b { color: #7c4dff; }
+
+.board-section { display: flex; justify-content: center; margin-bottom: 8px; }
+.board-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); background: #fff; touch-action: none; }
+#boardCanvas { display: block; cursor: pointer; max-width: 90vw; }
+
+.slot-section {
+  background: #f0f0f8; border-radius: 14px; padding: 10px 14px; margin-top: 8px;
+}
+.slot-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; color: #999; margin-bottom: 6px;
+}
+.slot-grid {
+  display: grid; grid-template-columns: repeat(20, 1fr); gap: 4px;
+}
+.slot-cell {
+  aspect-ratio: 1; border-radius: 5px; background: #e8e8f0;
+  border: 2px dashed #ccc; cursor: pointer; transition: all 0.15s; min-width: 0;
+}
+.slot-cell.has-bead { border: 2px solid transparent; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+.slot-cell.has-bead:hover { transform: scale(1.1); }
+.slot-cell.selected { border-color: #7c4dff; box-shadow: 0 0 0 2px white, 0 0 0 4px #7c4dff; }
+.slot-cell .bead-inner { width: 100%; height: 100%; border-radius: 4px; position: relative; }
+.slot-cell .bead-inner::after {
+  content: ""; position: absolute; inset: 20% 20% auto auto;
+  width: 30%; height: 30%; border-radius: 2px; background: rgba(255,255,255,0.25);
+}
+
+.victory-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+  z-index: 100; justify-content: center; align-items: center;
+}
+.victory-overlay.show { display: flex; }
+.victory-card {
+  background: white; border-radius: 32px; padding: 40px 48px; text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+.victory-card h2 { font-size: 36px; margin-bottom: 8px; }
+.victory-card p { font-size: 16px; color: #666; margin-bottom: 4px; }
+.victory-card .score { font-size: 48px; color: #7c4dff; font-weight: 700; margin: 12px 0; }
+.victory-card button {
+  padding: 10px 28px; border: none; border-radius: 24px; background: #7c4dff;
+  color: white; font-size: 16px; cursor: pointer; margin-top: 12px;
+}
+.victory-card button:hover { background: #651fff; }
+
+.template-bar {
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px;
+}
+.template-bar .tl { font-size: 12px; color: #aaa; align-self: center; }
+.tpl-btn {
+  padding: 3px 10px; border-radius: 10px; border: 2px solid #ddd;
+  background: #fff; cursor: pointer; font-size: 12px; color: #555;
+}
+.tpl-btn:hover { border-color: #7c4dff; }
+.tpl-btn.active { border-color: #7c4dff; background: #7c4dff; color: white; }
+
+@media (max-width: 640px) {
+  .game-wrap { padding: 14px; }
+  #boardCanvas { max-width: 90vw; }
+  #refCanvas { width: 72px; height: 72px; }
+  .ref-section { flex-wrap: wrap; }
+  .slot-cell { min-height: 18px; min-width: 18px; }
+}
+
+/* ===== Admin Panel (PC) ===== */
+.admin-toggle {
+  margin-left: auto; padding: 4px 12px; border: 2px solid #7c4dff;
+  border-radius: 10px; background: #fff; cursor: pointer;
+  font-size: 12px; color: #7c4dff; font-weight: 600; white-space: nowrap;
+}
+.admin-toggle:hover { background: #7c4dff; color: #fff; }
+
+.admin-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px); z-index: 200; justify-content: center; align-items: center;
+}
+.admin-overlay.show { display: flex; }
+
+.admin-panel {
+  background: #fff; border-radius: 20px; padding: 28px 32px;
+  max-width: 780px; width: 90vw; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3); animation: pop 0.3s ease;
+}
+.admin-panel h2 { font-size: 20px; color: #4a148c; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.admin-panel h2 .close-btn {
+  margin-left: auto; cursor: pointer; font-size: 22px; color: #aaa;
+  background: none; border: none; line-height: 1;
+}
+.admin-panel h2 .close-btn:hover { color: #e91e63; }
+
+.admin-body { display: flex; gap: 24px; flex-wrap: wrap; }
+.admin-upload-area {
+  flex: 1; min-width: 240px;
+  border: 3px dashed #ddd; border-radius: 16px; padding: 32px 16px;
+  text-align: center; cursor: pointer; transition: all 0.2s;
+}
+.admin-upload-area:hover { border-color: #7c4dff; background: #f8f6ff; }
+.admin-upload-area.has-image { border-color: #4caf50; background: #f1f8e9; }
+.admin-upload-area input[type=file] { display: none; }
+.admin-upload-area .icon { font-size: 48px; color: #bbb; }
+.admin-upload-area .text { font-size: 14px; color: #999; margin-top: 8px; }
+.admin-upload-area canvas { max-width: 100%; max-height: 200px; margin-top: 8px; border-radius: 8px; }
+
+.admin-settings { flex: 0 0 200px; }
+.admin-settings label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; margin-top: 12px; }
+.admin-settings label:first-child { margin-top: 0; }
+.admin-settings select, .admin-settings input[type=text] {
+  width: 100%; padding: 6px 10px; border: 2px solid #ddd; border-radius: 8px;
+  font-size: 14px; outline: none;
+}
+.admin-settings select:focus, .admin-settings input[type=text]:focus { border-color: #7c4dff; }
+
+.admin-preview { margin-top: 12px; }
+.admin-preview .preview-label { font-size: 13px; color: #666; margin-bottom: 4px; }
+.admin-preview canvas { border-radius: 8px; border: 2px solid #eee; image-rendering: pixelated; }
+
+.admin-actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+.admin-actions button {
+  padding: 8px 20px; border: none; border-radius: 12px;
+  font-size: 14px; cursor: pointer; font-weight: 600; transition: all 0.2s;
+}
+.admin-actions .btn-gen { background: #7c4dff; color: #fff; }
+.admin-actions .btn-gen:hover { background: #651fff; }
+.admin-actions .btn-gen:disabled { background: #ccc; cursor: not-allowed; }
+.admin-actions .btn-add { background: #4caf50; color: #fff; }
+.admin-actions .btn-add:hover { background: #388e3c; }
+.admin-actions .btn-add:disabled { background: #ccc; cursor: not-allowed; }.admin-del-row .btn-del { background: #ef5350; color: #fff; }
+.admin-del-row .btn-del:hover { background: #c62828; }
+.admin-del-row .btn-del:disabled { background: #ccc; cursor: not-allowed; }
+.admin-del-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid #eee; }
+.admin-del-section label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; }
+.admin-del-row { display: flex; gap: 8px; align-items: center; }
+.admin-del-row select { flex: 1; padding: 6px 10px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; }
+.admin-del-row select:focus { border-color: #7c4dff; }
+.admin-del-row .btn-del { padding: 6px 16px; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; font-weight: 600; white-space: nowrap; }</style>
+</head>
+<body>
+<div class="game-wrap">
+  <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:2px;padding-top:2px">
+  <span class="timer" id="timerDisplay" style="font-size:18px">⏱ 03:00</span>
+</div>
+<h1>🧩 <span>拼豆配对</span></h1>
+
+  <div class="template-bar">
+    <span class="tl">📌 关卡：</span>
+    <button class="tpl-btn active" onclick="pickTemplate('heart')">❤️ 爱心</button>
+    <button class="tpl-btn" onclick="pickTemplate('star')">⭐ 星星</button>
+    <button class="tpl-btn" onclick="pickTemplate('pika')">⚡ 皮卡丘</button>
+    <button class="tpl-btn" onclick="pickTemplate('cat')">🐱 小猫</button>
+    <button class="tpl-btn" onclick="pickTemplate('flower')">🌸 花朵</button>
+    <button class="tpl-btn" onclick="pickTemplate('dog')">🐶 小狗</button>
+    <button class="tpl-btn" onclick="pickTemplate('rabbit')">🐰 兔子</button>
+    <button class="admin-toggle" onclick="openAdmin()">🛠 管理</button>
+  </div>
+
+  <div class="ref-section">
+    <span class="label">🎯 目标：</span>
+    <canvas id="refCanvas" width="100" height="100"></canvas>
+    <div class="ref-hint">🔴🔵🟢🟣💗🟠 点击底盘方块 → 同色相连全部移入暂存区<br>点击暂存区方块拿起 → 点击底盘空位放下</div>
+  </div>
+
+  <div class="toolbar">
+    <button onclick="newGame()">🔄 新一局</button>
+    <button onclick="undoMove()">↩ 撤销</button>
+    <span class="stats">✅ <b id="matchCount">0</b> / <b id="totalCells">0</b></span>
+  </div>
+
+  <div class="board-section">
+    <div class="board-wrap">
+      <canvas id="boardCanvas"></canvas>
+    </div>
+  </div>
+
+  <div class="slot-section">
+    <div class="slot-header">
+      <span>📦 暂存区（2行×20列）</span>
+      <span>点方块拿起 → 点空底盘放下</span>
+    </div>
+    <div class="slot-grid" id="slotGrid"></div>
+  </div>
+</div>
+
+<div class="victory-overlay" id="gameoverOverlay">
+  <div class="victory-card">
+    <h2>⏰ 挑战失败！</h2>
+    <p>时间到了，再试一次吧！</p>
+    <div class="score" style="color:#f44336">😢 超时</div>
+    <button id="retryBtn">🔄 重新挑战</button>
+  </div>
+</div>
+
+<div class="victory-overlay" id="victoryOverlay">
+  <div class="victory-card">
+    <h2>🎉 通关啦！</h2>
+    <p>所有色块都已匹配正确！</p>
+    <div class="score" id="victoryScore">100%</div>
+    <button id="nextLevelBtn">下一关</button>
+  </div>
+</div>
+
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel">
+    <h2>🛠 后台管理 <button class="close-btn" onclick="closeAdmin()">✕</button></h2>
+    <div class="admin-body">
+      <div class="admin-upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">🖼</div>
+        <div class="text">点击上传图片，或拖拽图片到此处</div>
+        <input type="file" id="fileInput" accept="image/*" onchange="handleImageUpload(event)">
+        <canvas id="uploadPreview" style="display:none"></canvas>
+      </div>
+      <div class="admin-settings">
+        <label>网格尺寸</label>
+        <select id="gridSizeSelect">
+          <option value="20" selected>20×20</option>
+          <option value="24">24×24</option>
+          <option value="28">28×28</option>
+          <option value="32">32×32</option>
+          <option value="40">40×40</option>
+          <option value="48">48×48</option>
+          <option value="56">56×56</option>
+          <option value="64">64×64</option>
+          <option value="80">80×80</option>
+        </select>
+
+        <label>颜色数量 <span id="colorCountLabel">10</span></label>
+        <input type="range" id="colorCountSlider" min="4" max="20" value="10" 
+               oninput="document.getElementById('colorCountLabel').textContent=this.value">
+        <label>关卡名称</label>
+        <input type="text" id="levelNameInput" value="custom" placeholder="英文名如 custom">
+      </div>
+    </div>
+    <div class="admin-preview" id="adminPreview" style="display:none">
+      <div class="preview-label">📐 生成预览：</div>
+      <canvas id="patternPreview"></canvas>
+      <div style="font-size:12px;color:#999;margin-top:4px" id="patternInfo"></div>
+    </div>
+    <div class="admin-actions">
+      <button class="btn-gen" id="genBtn" onclick="generatePattern()" disabled>🎨 生成图案</button>
+      <button class="btn-add" id="addBtn" onclick="addToGame()" disabled>📥 添加到游戏</button>
+      <button class="btn-add" id="exportBtn" onclick="exportPatternData()" style="background:#ff9800;color:#fff">📤 导出图案数据</button>
+      <button class="btn-add" onclick="publishLevels()" style="background:#4caf50;color:#fff" id="publishBtn">📦 发布关卡</button>
+    </div>
+    <div class="admin-del-section">
+      <label>🗑 删除关卡</label>
+      <div class="admin-del-row">
+        <select id="deleteLevelSelect"></select>
+        <button class="btn-del" onclick="deleteSelectedLevel()" id="delBtn">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var GRID = 20, SLOT_ROWS = 2, SLOT_COLS = 20;
+var boardCanvas = document.getElementById('boardCanvas');
+var bCtx = boardCanvas.getContext('2d');
+var refCanvas = document.getElementById('refCanvas');
+var rCtx = refCanvas.getContext('2d');
+var CELL = boardCanvas.width / GRID;
+var BR = CELL * 0.38;
+
+var targetGrid = [], boardGrid = [], slotGrid = [];
+var selectedPos = null; // {type:'slot',r,c} or null  (board no longer uses "selected" state)
+var currentTemplate = 'heart';
+var moveHistory = [];
+var totalTargetCells = 0;
+
+var RED = '#f44336', BLUE = '#2196f3', GREEN = '#4caf50', PURPLE = '#9c27b0', PINK = '#e91e63', ORANGE = '#ff9800';
+var ALL_COLORS = [RED, BLUE, GREEN, PURPLE, PINK, ORANGE];
+
+var TEMPLATES = {
+  heart: { data: [[0,0,0,0,0,0,2,2,0,0,0,0,2,2,0,0,0,0,0,0],[0,0,0,0,2,1,1,1,1,1,1,1,1,1,2,0,0,0,0,0],[0,0,0,2,1,1,1,1,1,1,1,1,1,1,1,2,0,0,0,0],[0,0,2,1,1,1,3,3,1,1,3,3,1,1,1,1,2,0,0,0],[0,0,2,1,1,3,3,3,3,3,3,3,3,1,1,1,2,0,0,0],[0,0,0,2,1,1,3,3,3,3,3,3,1,1,1,2,0,0,0,0],[0,0,0,0,2,1,1,1,1,1,1,1,1,1,2,0,0,0,0,0],[0,0,0,0,0,2,1,1,1,1,1,1,1,2,0,0,0,0,0,0],[0,0,0,0,0,0,2,1,1,1,1,1,2,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,2,1,1,1,2,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,2,1,2,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0]], colors: {1:RED,2:BLUE,3:GREEN} },
+  star: { data: [[0,2,2,0,0,0,0,0,2,2,2,0,0,0,0,0,0,2,2,0],[2,1,1,2,0,0,0,0,2,2,2,0,0,0,0,2,1,1,2,0],[2,1,1,1,2,0,2,2,2,2,2,2,2,0,2,1,1,1,2,0],[0,2,1,1,1,2,2,2,2,2,2,2,2,2,1,1,1,2,0,0],[0,0,2,1,1,1,2,2,2,2,2,2,2,1,1,1,2,0,0,0],[0,0,0,2,1,1,2,2,2,2,2,2,2,1,1,2,0,0,0,0],[0,0,0,2,1,3,3,2,2,2,2,3,3,3,1,2,0,0,0,0],[0,0,2,1,1,3,3,2,2,2,2,3,3,3,1,1,2,0,0,0],[0,0,2,1,1,1,2,2,2,2,2,2,2,1,1,1,2,0,0,0],[0,0,0,2,1,1,1,2,2,2,2,2,1,1,1,2,0,0,0,0],[0,0,0,0,2,1,1,2,2,2,2,2,1,1,2,0,0,0,0,0],[0,0,0,0,0,2,1,2,2,2,2,2,1,2,0,0,0,0,0,0],[0,0,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0]], colors: {1:RED,2:BLUE,3:GREEN} },
+  pika: { data: [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0],[0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0],[0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0],[0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0,0],[0,0,0,0,1,1,1,2,2,2,2,2,2,1,1,1,0,0,0,0],[0,0,0,1,1,1,1,1,2,2,2,2,1,1,1,1,1,0,0,0],[0,0,0,1,1,1,1,1,1,2,2,1,1,1,1,1,1,0,0,0],[0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0],[0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],[0,0,0,0,0,3,3,1,1,1,1,1,1,3,3,0,0,0,0,0],[0,0,0,0,3,3,3,3,1,1,1,1,3,3,3,3,0,0,0,0],[0,0,0,0,3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0],[0,0,0,0,0,0,0,3,3,3,3,3,3,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,3,3,3,3,0,0,0,0,0,0,0,0]], colors: {1:RED,2:BLUE,3:GREEN} },
+  cat: { data: [[0,0,0,0,2,2,0,0,0,0,0,0,0,0,2,2,0,0,0,0],[0,0,0,2,1,1,2,0,0,0,0,0,0,2,1,1,2,0,0,0],[0,0,2,1,1,1,1,2,3,3,3,3,2,1,1,1,1,2,0,0],[0,0,2,1,1,1,1,1,3,3,3,3,1,1,1,1,1,2,0,0],[0,0,2,1,1,1,1,3,3,3,3,3,3,1,1,1,1,2,0,0],[0,0,0,2,1,1,1,3,3,3,3,3,3,1,1,1,2,0,0,0],[0,0,0,0,2,1,3,3,3,3,3,3,3,3,1,2,0,0,0,0],[0,0,0,0,2,1,3,3,3,3,3,3,3,3,1,2,0,0,0,0],[0,0,0,0,0,2,3,3,3,3,3,3,3,3,2,0,0,0,0,0],[0,0,0,0,2,1,3,3,3,3,3,3,3,3,1,2,0,0,0,0],[0,0,0,0,2,1,1,3,3,3,3,3,3,1,1,2,0,0,0,0],[0,0,0,2,1,1,1,1,3,3,3,3,1,1,1,1,2,0,0,0],[0,0,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,0,0],[0,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,0],[0,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,0],[0,0,2,2,2,1,1,1,1,1,1,1,1,1,1,2,2,2,0,0],[0,0,0,0,2,2,2,2,2,1,1,2,2,2,2,2,0,0,0,0]], colors: {1:RED,2:BLUE,3:GREEN} },
+  flower: { data: [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],[0,0,0,0,1,1,1,1,3,3,1,1,1,1,0,0,0,0,0,0],[0,0,0,1,1,1,1,3,3,3,3,1,1,1,1,0,0,0,0,0],[0,0,0,1,1,1,1,3,3,3,3,1,1,1,1,0,0,0,0,0],[0,0,0,0,1,1,3,3,3,3,3,3,1,1,0,0,0,0,0,0],[0,0,0,0,0,1,3,3,3,3,3,3,1,0,0,0,0,0,0,0],[0,0,0,0,0,2,2,3,3,3,3,2,2,0,0,0,0,0,0,0],[0,0,0,0,2,2,2,2,3,3,2,2,2,2,0,0,0,0,0,0],[0,0,0,0,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0],[0,0,0,0,0,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0],[0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], colors: {1:RED,2:BLUE,3:GREEN} },
+  dog: { data: [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,4,4,4,0,0,4,4,4,0,0,0,0,0,0],[0,0,0,0,0,4,4,4,4,0,0,4,4,4,4,0,0,0,0,0],[0,0,0,0,4,4,6,6,4,0,0,4,6,6,4,4,0,0,0,0],[0,0,0,4,4,6,6,6,6,0,0,6,6,6,6,4,4,0,0,0],[0,0,0,4,6,6,6,6,6,6,6,6,6,6,6,6,4,0,0,0],[0,0,0,0,6,6,6,6,6,6,6,6,6,6,6,6,0,0,0,0],[0,0,0,0,6,6,6,6,6,6,6,6,6,6,6,6,0,0,0,0],[0,0,0,0,6,6,3,3,6,6,6,6,3,3,6,6,0,0,0,0],[0,0,0,0,6,6,3,3,6,6,6,6,3,3,6,6,0,0,0,0],[0,0,0,0,6,6,6,1,1,1,1,1,1,6,6,6,0,0,0,0],[0,0,0,0,0,6,6,1,1,1,1,1,1,6,6,0,0,0,0,0],[0,0,0,0,0,6,6,5,5,5,5,5,5,6,6,0,0,0,0,0],[0,0,0,0,0,0,6,5,5,5,5,5,5,6,0,0,0,0,0,0],[0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0],[0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],[0,0,0,0,1,1,1,2,2,1,1,2,2,1,1,1,0,0,0,0],[0,0,0,0,0,0,6,6,6,6,6,6,6,6,0,0,0,0,0,0],[0,0,0,0,0,0,0,6,6,6,6,6,6,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], colors: {1:RED,2:GREEN,3:BLUE,4:PURPLE,5:PINK,6:ORANGE} },
+  rabbit: { data: [[0,0,0,0,5,5,0,0,0,0,0,0,0,0,5,5,0,0,0,0],[0,0,0,5,5,5,0,0,0,0,0,0,0,0,5,5,5,0,0,0],[0,0,5,5,5,5,0,0,0,0,0,0,0,0,5,5,5,5,0,0],[0,0,5,4,4,5,0,0,0,0,0,0,0,0,5,4,4,5,0,0],[0,0,0,4,4,4,0,0,0,0,0,0,0,0,4,4,4,0,0,0],[0,0,0,4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0],[0,0,0,0,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0],[0,0,0,0,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0],[0,0,0,0,4,4,3,3,4,4,4,4,3,3,4,4,0,0,0,0],[0,0,0,0,4,4,3,3,4,4,4,4,3,3,4,4,0,0,0,0],[0,0,0,0,0,4,4,1,1,1,1,1,1,4,4,0,0,0,0,0],[0,0,0,0,0,0,4,4,1,1,1,1,4,4,0,0,0,0,0,0],[0,0,0,0,0,0,4,4,4,4,4,4,4,4,0,0,0,0,0,0],[0,0,0,0,0,0,0,2,2,4,4,2,2,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,2,2,4,4,2,2,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,4,4,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,4,4,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]], colors: {1:RED,2:GREEN,3:BLUE,4:ORANGE,5:PURPLE} }
+};
+
+// Persisted custom templates
+var CUSTOM_TEMPLATE_NAMES = [];
+
+// ===== Dynamic Board Resize =====
+function resizeBoard(newSize) {
+  GRID = newSize;
+  SLOT_COLS = Math.max(20, newSize);
+  var cellSize = Math.max(12, Math.min(24, Math.floor(720 / newSize)));
+  boardCanvas.width = newSize * cellSize;
+  boardCanvas.height = newSize * cellSize;
+  CELL = boardCanvas.width / GRID;
+  BR = CELL * 0.38;
+  // Clear grids
+  targetGrid = []; boardGrid = []; slotGrid = [];
+  for (var r = 0; r < GRID; r++) {
+    targetGrid[r] = []; boardGrid[r] = [];
+    for (var c = 0; c < GRID; c++) { targetGrid[r][c] = null; boardGrid[r][c] = null; }
+  }
+  slotGrid = [];
+  for (var r = 0; r < SLOT_ROWS; r++) {
+    slotGrid[r] = [];
+    for (var c = 0; c < SLOT_COLS; c++) slotGrid[r][c] = null;
+  }
+}
+
+
+function copyPublishCode() {
+  var codeEl = document.getElementById('publishCode');
+  if (!codeEl) return;
+  var code = codeEl.textContent;
+  try {
+    navigator.clipboard.writeText(code);
+    var btn = document.querySelector('[onclick="copyPublishCode()"]');
+    if (btn) { btn.textContent = '✅ 已复制'; setTimeout(function() { btn.textContent = '📋 复制代码'; }, 2000); }
+  } catch(e) {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = code;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+function init() { resizeBoard(20); loadCustomTemplates(); pickTemplate('heart'); }
+
+function pickTemplate(name) {
+  currentTemplate = name;
+  document.querySelectorAll('.tpl-btn').forEach(function(b) { b.classList.remove('active'); });
+  var btn = document.querySelector('.tpl-btn[onclick*="' + name + '"]');
+  if (btn) btn.classList.add('active');
+  startLevel();
+}
+
+function startLevel() {
+  var tmpl = TEMPLATES[currentTemplate];
+  // Auto-resize board if template is larger
+  var tplRows = tmpl.data.length;
+  if (tplRows > GRID) { resizeBoard(tplRows); }
+  // Center template in grid
+  var tMinR = GRID, tMaxR = 0, tMinC = GRID, tMaxC = 0;
+  for (var r = 0; r < GRID; r++)
+    for (var c = 0; c < GRID; c++)
+      if (tmpl.data[r] && tmpl.data[r][c] > 0) {
+        if (r < tMinR) tMinR = r; if (r > tMaxR) tMaxR = r;
+        if (c < tMinC) tMinC = c; if (c > tMaxC) tMaxC = c;
+      }
+  var tRows = tMaxR - tMinR + 1, tCols = tMaxC - tMinC + 1;
+  var rowOff = Math.floor((GRID - tRows) / 2) - tMinR;
+  var colOff = Math.floor((GRID - tCols) / 2) - tMinC;
+  targetGrid = [];
+  for (var r = 0; r < GRID; r++) {
+    targetGrid[r] = [];
+    for (var c = 0; c < GRID; c++) {
+      var sr = r - rowOff, sc = c - colOff;
+      var v = (sr >= 0 && sr < GRID && tmpl.data[sr] && tmpl.data[sr][sc]) || 0;
+      targetGrid[r][c] = v > 0 ? tmpl.colors[v] : null;
+    }
+  }
+  var targetCells = [];
+  for (var r = 0; r < GRID; r++)
+    for (var c = 0; c < GRID; c++)
+      if (targetGrid[r][c]) targetCells.push({ row: r, col: c, color: targetGrid[r][c] });
+  totalTargetCells = targetCells.length;
+
+  // Fill board with color distribution matching targets exactly
+  boardGrid = [];
+  for (var r = 0; r < GRID; r++) { boardGrid[r] = []; for (var c = 0; c < GRID; c++) boardGrid[r][c] = null; }
+  // Count targets per color
+  var colorCounts = {};
+  for (var i = 0; i < targetCells.length; i++) {
+    var c = targetCells[i].color;
+    colorCounts[c] = (colorCounts[c] || 0) + 1;
+  }
+  // Create bead array matching target color distribution exactly
+  var beadArray = [];
+  for (var col in colorCounts) {
+    for (var n = 0; n < colorCounts[col]; n++) beadArray.push(col);
+  }
+  shuffle(beadArray);
+  // Place beads on target cells
+  var bi = 0;
+  for (var r = 0; r < GRID; r++) {
+    for (var c = 0; c < GRID; c++) {
+      if (targetGrid[r][c]) boardGrid[r][c] = beadArray[bi++];
+    }
+  }
+
+  // Empty slots
+  slotGrid = [];
+  for (var r = 0; r < SLOT_ROWS; r++) { slotGrid[r] = []; for (var c = 0; c < SLOT_COLS; c++) slotGrid[r][c] = null; }
+
+  selectedPos = null;
+  moveHistory = [];
+  document.getElementById('victoryOverlay').classList.remove('show');
+  document.getElementById('gameoverOverlay').classList.remove('show');
+  drawBoard(); drawRef(); renderSlots(); updateStats();
+  startTimer();
+}
+
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
+// ===== Flood fill: find connected same-color group =====
+function getConnectedGroup(startR, startC, color) {
+  var visited = {};
+  var queue = [{r: startR, c: startC}];
+  var group = [];
+  while (queue.length > 0) {
+    var cur = queue.shift();
+    var key = cur.r + ',' + cur.c;
+    if (visited[key]) continue;
+    visited[key] = true;
+    if (boardGrid[cur.r][cur.c] !== color) continue;
+    // Skip beads that are already correctly matched
+    if (boardGrid[cur.r][cur.c] === targetGrid[cur.r][cur.c]) continue;
+    group.push({r: cur.r, c: cur.c});
+    var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (var d = 0; d < 4; d++) {
+      var nr = cur.r + dirs[d][0], nc = cur.c + dirs[d][1];
+      if (nr >= 0 && nr < GRID && nc >= 0 && nc < GRID && boardGrid[nr][nc] === color && boardGrid[nr][nc] !== targetGrid[nr][nc]) {
+        queue.push({r: nr, c: nc});
+      }
+    }
+  }
+  return group;
+}
+
+// ===== Find connected empty region with same target color =====
+function getConnectedRegion(startR, startC, color) {
+  var visited = {}, queue = [{r: startR, c: startC}], region = [];
+  while (queue.length > 0) {
+    var cur = queue.shift();
+    var key = cur.r + ',' + cur.c;
+    if (visited[key]) continue;
+    visited[key] = true;
+    if (boardGrid[cur.r][cur.c] !== null) continue;
+    if (targetGrid[cur.r][cur.c] !== color) continue;
+    region.push({r: cur.r, c: cur.c});
+    var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (var d = 0; d < 4; d++) {
+      var nr = cur.r + dirs[d][0], nc = cur.c + dirs[d][1];
+      if (nr >= 0 && nr < GRID && nc >= 0 && nc < GRID && boardGrid[nr][nc] === null) {
+        queue.push({r: nr, c: nc});
+      }
+    }
+  }
+  return region;
+}
+
+// ===== Drawing =====
+function drawBoard() {
+  bCtx.clearRect(0, 0, boardCanvas.width, boardCanvas.height);
+  for (var r = 0; r < GRID; r++) {
+    for (var c = 0; c < GRID; c++) {
+      var x = c * CELL + CELL/2, y = r * CELL + CELL/2;
+      var tc = targetGrid[r][c], bc = boardGrid[r][c];
+
+      // Decide base opacity based on match status
+      var matched = bc && tc && bc === tc;
+      if (tc) {
+        bCtx.fillStyle = matched ? tc + '30' : tc + '70';
+      } else { bCtx.fillStyle = '#f5f5f5'; }
+      var halfBase = CELL * 0.44; var cr = CELL * 0.08; bCtx.beginPath(); bCtx.roundRect(x - halfBase, y - halfBase, halfBase * 2, halfBase * 2, cr); bCtx.fill();
+
+      if (bc) {
+        var hs = CELL * 0.34;
+        // Shadow
+        bCtx.fillStyle = 'rgba(0,0,0,0.12)';
+        bCtx.beginPath(); bCtx.roundRect(x - hs + 1, y - hs + 2, hs * 2, hs * 2, 3); bCtx.fill();
+        // Square body
+        bCtx.fillStyle = bc;
+        bCtx.beginPath(); bCtx.roundRect(x - hs, y - hs, hs * 2, hs * 2, 4); bCtx.fill();
+        // Gloss (linear gradient for square)
+        var grad = bCtx.createLinearGradient(x - hs, y - hs, x + hs, y + hs);
+        grad.addColorStop(0, 'rgba(255,255,255,0.30)'); grad.addColorStop(0.5, 'rgba(255,255,255,0.05)'); grad.addColorStop(1, 'rgba(0,0,0,0.10)');
+        bCtx.fillStyle = grad;
+        bCtx.beginPath(); bCtx.roundRect(x - hs, y - hs, hs * 2, hs * 2, 4); bCtx.fill();
+        if (matched) {
+          bCtx.strokeStyle = bc; bCtx.lineWidth = 2;
+          bCtx.beginPath(); bCtx.roundRect(x - hs - 2, y - hs - 2, hs * 2 + 4, hs * 2 + 4, 5); bCtx.stroke();
+        }
+      }
+    }
+  }
+}
+
+function drawRef() {
+  var tmpl = TEMPLATES[currentTemplate];
+  rCtx.clearRect(0, 0, refCanvas.width, refCanvas.height);
+  rCtx.fillStyle = '#fafafa'; rCtx.fillRect(0, 0, refCanvas.width, refCanvas.height);
+  if (!tmpl) return;
+  var cw = refCanvas.width / GRID;
+  for (var r = 0; r < GRID && r < tmpl.data.length; r++)
+    for (var c = 0; c < GRID && c < tmpl.data[r].length; c++)
+      if (tmpl.data[r][c] > 0) {
+        var rh = cw * 0.34; var rx = c * cw + cw/2, ry = r * cw + cw/2;
+        rCtx.fillStyle = tmpl.colors[tmpl.data[r][c]];
+        rCtx.beginPath(); rCtx.roundRect(rx - rh, ry - rh, rh * 2, rh * 2, 2); rCtx.fill();
+      }
+}
+
+// ===== Slots =====
+function renderSlots() {
+  var grid = document.getElementById('slotGrid');
+  grid.style.gridTemplateColumns = 'repeat(' + SLOT_COLS + ', 1fr)';
+  grid.innerHTML = '';
+  for (var r = 0; r < SLOT_ROWS; r++) {
+    for (var c = 0; c < SLOT_COLS; c++) {
+      (function(rr, cc) {
+        var div = document.createElement('div');
+        div.className = 'slot-cell';
+        if (slotGrid[rr][cc]) {
+          div.className += ' has-bead';
+          div.innerHTML = '<div class="bead-inner" style="background:' + slotGrid[rr][cc] + '"></div>';
+        }
+        if (selectedPos && selectedPos.type === 'slot' && selectedPos.r === rr && selectedPos.c === cc)
+          div.className += ' selected';
+        div.onclick = function() { clickSlot(rr, cc); };
+        grid.appendChild(div);
+      })(r, c);
+    }
+  }
+}
+
+// ===== Interaction =====
+
+// Click on board: flood fill connected same-color group and move to slots
+function clickBoard(row, col) {
+  var bead = boardGrid[row][col];
+  var target = targetGrid[row][col];
+  if (!bead || !target) return;
+
+  // If it's already correct, deselect any slot selection and ignore
+  if (bead === target) {
+    selectedPos = null;
+    drawBoard(); renderSlots();
+    return;
+  }
+
+  // Flood fill connected same-color group
+  var group = getConnectedGroup(row, col, bead);
+  if (group.length === 0) return;
+
+  // Find empty slots
+  var emptySlots = [];
+  for (var r = 0; r < SLOT_ROWS; r++)
+    for (var c = 0; c < SLOT_COLS; c++)
+      if (!slotGrid[r][c]) emptySlots.push({r: r, c: c});
+
+  var toMove = Math.min(group.length, emptySlots.length);
+  if (toMove === 0) return;
+
+  var moved = [];
+  for (var i = 0; i < toMove; i++) {
+    var bp = group[i], sp = emptySlots[i];
+    var cellColor = boardGrid[bp.r][bp.c];
+    if (!cellColor) continue;
+    moved.push({br: bp.r, bc: bp.c, sr: sp.r, sc: sp.c, color: cellColor});
+    slotGrid[sp.r][sp.c] = cellColor;
+    boardGrid[bp.r][bp.c] = null;
+  }
+
+  moveHistory.push({ type: 'groupMove', moves: moved });
+  selectedPos = null;
+  drawBoard(); renderSlots(); updateStats(); checkVictory();
+}
+
+// Click on slot: pick up / place bead
+function clickSlot(sr, sc) {
+  var bead = slotGrid[sr][sc];
+
+  if (selectedPos) {
+    if (selectedPos.type === 'slot' && selectedPos.r === sr && selectedPos.c === sc) {
+      // Deselect
+      selectedPos = null;
+      drawBoard(); renderSlots();
+      return;
+    }
+
+    // If slot has a bead and we have a selected slot bead, swap
+    if (bead && selectedPos.type === 'slot') {
+      var ssr = selectedPos.r, ssc = selectedPos.c;
+      var selBead = slotGrid[ssr][ssc];
+      if (selBead) {
+        moveHistory.push({ type: 'swapSlots', r1: ssr, c1: ssc, r2: sr, c2: sc, c1c: selBead, c2c: bead });
+        slotGrid[ssr][ssc] = bead;
+        slotGrid[sr][sc] = selBead;
+        selectedPos = null;
+        drawBoard(); renderSlots();
+        return;
+      }
+    }
+
+    // If selected is a slot bead and this slot is empty, move here
+    if (!bead && selectedPos.type === 'slot') {
+      var ssr = selectedPos.r, ssc = selectedPos.c;
+      var selBead = slotGrid[ssr][ssc];
+      if (selBead) {
+        moveHistory.push({ type: 'moveSlot', fromR: ssr, fromC: ssc, toR: sr, toC: sc, color: selBead });
+        slotGrid[sr][sc] = selBead;
+        slotGrid[ssr][ssc] = null;
+        selectedPos = { type: 'slot', r: sr, c: sc };
+        drawBoard(); renderSlots();
+        return;
+      }
+    }
+
+    // If this slot has a bead and selected is a board dest... no, board dest isn't tracked as selected
+    // Actually if we click slot with a bead and we had selected... just pick this one instead
+    if (bead) {
+      selectedPos = { type: 'slot', r: sr, c: sc };
+      drawBoard(); renderSlots();
+      return;
+    }
+
+    selectedPos = null;
+    drawBoard(); renderSlots();
+    return;
+  }
+
+  // Nothing selected
+  if (bead) {
+    // Pick up this slot bead
+    selectedPos = { type: 'slot', r: sr, c: sc };
+    drawBoard(); renderSlots();
+    return;
+  }
+  // Clicked empty slot with nothing selected - nothing happens
+}
+
+// Click on empty board cell: place selected slot bead here
+boardCanvas.addEventListener('click', function(e) {
+  var rect = boardCanvas.getBoundingClientRect();
+  var sx = boardCanvas.width / rect.width, sy = boardCanvas.height / rect.height;
+  var cx = (e.clientX - rect.left) * sx, cy = (e.clientY - rect.top) * sy;
+  var col = Math.floor(cx / CELL), row = Math.floor(cy / CELL);
+  if (row < 0 || row >= GRID || col < 0 || col >= GRID) return;
+
+  var bead = boardGrid[row][col];
+  var target = targetGrid[row][col];
+
+  if (bead) {
+    // Click on a bead → flood fill and move group to slots
+    clickBoard(row, col);
+    return;
+  }
+
+  // Empty board cell - auto-fill connected region
+  if (selectedPos && selectedPos.type === 'slot') {
+    var sr = selectedPos.r, sc = selectedPos.c;
+    var slotBead = slotGrid[sr][sc];
+    if (slotBead && target && slotBead === target) {
+      // Find all connected empty cells with same target color
+      var region = getConnectedRegion(row, col, slotBead);
+      // Find all slot beads of this color
+      var avail = [];
+      for (var rr = 0; rr < SLOT_ROWS; rr++)
+        for (var cc = 0; cc < SLOT_COLS; cc++)
+          if (slotGrid[rr][cc] === slotBead) avail.push({r: rr, c: cc});
+      var toFill = Math.min(region.length, avail.length);
+      if (toFill > 0) {
+        var moves = [];
+        for (var i = 0; i < toFill; i++) {
+          moves.push({sr: avail[i].r, sc: avail[i].c, br: region[i].r, bc: region[i].c, clr: slotBead});
+          boardGrid[region[i].r][region[i].c] = slotBead;
+          slotGrid[avail[i].r][avail[i].c] = null;
+        }
+        moveHistory.push({ type: 'autoFill', moves: moves });
+        selectedPos = null;
+        drawBoard(); renderSlots(); updateStats(); checkVictory();
+        return;
+      }
+    }
+  }
+
+  // Click empty board cell with nothing selected or no slot bead - do nothing
+  selectedPos = null;
+  drawBoard(); renderSlots();
+});
+
+boardCanvas.addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+  selectedPos = null;
+  drawBoard(); renderSlots();
+});
+
+// ===== Undo =====
+function undoMove() {
+  if (moveHistory.length === 0) return;
+  var last = moveHistory.pop();
+
+  if (last.type === 'groupMove') {
+    // Reverse: put beads back on board, clear slots
+    for (var i = 0; i < last.moves.length; i++) {
+      var m = last.moves[i];
+      boardGrid[m.br][m.bc] = m.color;
+      slotGrid[m.sr][m.sc] = null;
+    }
+  } else if (last.type === 'moveSlot') {
+    slotGrid[last.fromR][last.fromC] = last.color;
+    slotGrid[last.toR][last.toC] = null;
+  } else if (last.type === 'swapSlots') {
+    slotGrid[last.r1][last.c1] = last.c2c;
+    slotGrid[last.r2][last.c2] = last.c1c;
+  } else if (last.type === 'autoFill') {
+    for (var i = 0; i < last.moves.length; i++) {
+      var m = last.moves[i];
+      boardGrid[m.br][m.bc] = null;
+      slotGrid[m.sr][m.sc] = m.clr;
+    }
+  }
+
+  selectedPos = null;
+  drawBoard(); renderSlots(); updateStats();
+}
+
+function newGame() { startLevel(); }
+
+function updateStats() {
+  var correct = 0;
+  for (var r = 0; r < GRID; r++)
+    for (var c = 0; c < GRID; c++)
+      if (targetGrid[r][c] && boardGrid[r][c] === targetGrid[r][c]) correct++;
+  document.getElementById('matchCount').textContent = correct;
+  document.getElementById('totalCells').textContent = totalTargetCells;
+}
+
+var TEMPLATE_ORDER = ['heart', 'star', 'pika', 'cat', 'flower', 'dog', 'rabbit'];
+
+// ===== Timer =====
+var timeLeft = 180;
+var timerInterval = null;
+
+function startTimer() {
+  stopTimer();
+  timeLeft = 180;
+  updateTimerText();
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    updateTimerText();
+    if (timeLeft <= 0) {
+      stopTimer();
+      document.getElementById('gameoverOverlay').classList.add('show');
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerText() {
+  var el = document.getElementById('timerDisplay');
+  var m = Math.floor(timeLeft / 60);
+  var s = timeLeft % 60;
+  el.textContent = '⏱ ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  el.className = 'timer' + (timeLeft <= 30 ? ' warning' : '');
+}
+
+document.getElementById('retryBtn').onclick = function() {
+  document.getElementById('gameoverOverlay').classList.remove('show');
+  newGame();
+};
+
+document.getElementById('nextLevelBtn').onclick = function() {
+  document.getElementById('victoryOverlay').classList.remove('show');
+  var curIdx = TEMPLATE_ORDER.indexOf(currentTemplate);
+  var nextIdx = (curIdx + 1) % TEMPLATE_ORDER.length;
+  pickTemplate(TEMPLATE_ORDER[nextIdx]);
+};
+
+// ===== 后台管理：图片生成拼豆关卡（中值切割 + Floyd-Steinberg 抖动） =====
+var FIXED_PALETTE = [
+  null,
+  { name: 'WHITE',        hex: '#ffffff' },
+  { name: 'LIGHT_GRAY',   hex: '#e0e0e0' },
+  { name: 'GRAY',         hex: '#9e9e9e' },
+  { name: 'DARK_GRAY',    hex: '#616161' },
+  { name: 'BLACK',        hex: '#212121' },
+  { name: 'RED',          hex: '#f44336' },
+  { name: 'DARK_RED',     hex: '#c62828' },
+  { name: 'PINK',         hex: '#e91e63' },
+  { name: 'LIGHT_PINK',   hex: '#f8bbd0' },
+  { name: 'ORANGE',       hex: '#ff9800' },
+  { name: 'DARK_ORANGE',  hex: '#e65100' },
+  { name: 'PEACH',        hex: '#ffccbc' },
+  { name: 'YELLOW',       hex: '#ffeb3b' },
+  { name: 'GREEN',        hex: '#4caf50' },
+  { name: 'DARK_GREEN',   hex: '#2e7d32' },
+  { name: 'LIGHT_GREEN',  hex: '#81c784' },
+  { name: 'LIME',         hex: '#cddc39' },
+  { name: 'TEAL',         hex: '#009688' },
+  { name: 'MINT',         hex: '#a5d6a7' },
+  { name: 'BLUE',         hex: '#2196f3' },
+  { name: 'DARK_BLUE',    hex: '#1565c0' },
+  { name: 'LIGHT_BLUE',   hex: '#90caf9' },
+  { name: 'NAVY',         hex: '#1a237e' },
+  { name: 'PURPLE',       hex: '#9c27b0' },
+  { name: 'DARK_PURPLE',  hex: '#6a1b9a' },
+  { name: 'LAVENDER',     hex: '#ce93d8' },
+  { name: 'BROWN',        hex: '#795548' },
+  { name: 'BEIGE',        hex: '#d7ccc8' },
+];
+var FIXED_RGB = FIXED_PALETTE.map(function(p) { if (!p) return null; return hexToRgb(p.hex); });
+var FIXED_NAMES = {}; for (var fi = 1; fi < FIXED_PALETTE.length; fi++) { if (FIXED_PALETTE[fi]) FIXED_NAMES[FIXED_PALETTE[fi].name] = FIXED_PALETTE[fi].hex; }
+function ensureHexColors(tmpl) {
+  if (!tmpl || !tmpl.colors) return tmpl;
+  var hexValues = {};
+  for (var fi = 1; fi < FIXED_PALETTE.length; fi++) {
+    if (FIXED_PALETTE[fi]) hexValues[FIXED_PALETTE[fi].name] = FIXED_PALETTE[fi].hex;
+  }
+  for (var key in tmpl.colors) {
+    var val = tmpl.colors[key];
+    // If it's a color name (no # prefix), convert to hex
+    if (typeof val === 'string' && val.charAt(0) !== '#' && hexValues[val]) {
+      tmpl.colors[key] = hexValues[val];
+    }
+  }
+  return tmpl;
+}
+
+var uploadedImage = null;
+var generatedData = null;
+
+function closeAdmin() { document.getElementById('adminOverlay').classList.remove('show'); }
+
+var uploadArea = document.getElementById('uploadArea');
+uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.style.borderColor = '#7c4dff'; });
+uploadArea.addEventListener('dragleave', function(e) { e.preventDefault(); uploadArea.style.borderColor = ''; });
+uploadArea.addEventListener('drop', function(e) {
+  e.preventDefault(); uploadArea.style.borderColor = '';
+  if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleImageUpload(e) {
+  if (e.target.files.length > 0) handleFile(e.target.files[0]);
+}
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      uploadedImage = img;
+      var canvas = document.getElementById('uploadPreview');
+      canvas.width = Math.min(img.width, 300);
+      canvas.height = Math.min(img.height, 300);
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.style.display = 'block';
+      document.querySelector('.admin-upload-area .icon').style.display = 'none';
+      document.querySelector('.admin-upload-area .text').textContent = file.name + ' (' + img.width + '×' + img.height + ')';
+      uploadArea.classList.add('has-image');
+      document.getElementById('genBtn').disabled = false;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1,3), 16),
+    g: parseInt(hex.slice(3,5), 16),
+    b: parseInt(hex.slice(5,7), 16)
+  };
+}
+
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(function(v) {
+    return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
+  }).join('');
+}
+
+function colorDistance(c1, c2) {
+  var dr = c1.r - c2.r, dg = c1.g - c2.g, db = c1.b - c2.b;
+  return dr*dr + dg*dg + db*db;
+}
+
+// ===== Median Cut Color Quantization =====
+// Extracts the best N colors from the image itself using median cut.
+
+function medianCutPalette(imgData, w, h, numColors) {
+  // Gather all pixels as {r,g,b} objects
+  var pixels = [];
+  for (var i = 0; i < imgData.length; i += 4) {
+    pixels.push({ r: imgData[i], g: imgData[i+1], b: imgData[i+2], a: imgData[i+3] });
+  }
+  // Filter out transparent pixels (PNG alpha)
+  pixels = pixels.filter(function(p) { return p.a >= 128; });
+
+  // If we have fewer pixels than requested colors, just return them all
+  if (pixels.length <= numColors) {
+    var unique = {};
+    var result = [];
+    for (var pi = 0; pi < pixels.length; pi++) {
+      var k = pixels[pi].r + ',' + pixels[pi].g + ',' + pixels[pi].b;
+      if (!unique[k]) {
+        unique[k] = true;
+        result.push(pixels[pi]);
+      }
+    }
+    return result;
+  }
+
+  // Median cut: recursively split boxes
+  // Each box is { pixels: [...], rMin, rMax, gMin, gMax, bMin, bMax }
+  function makeBox(plist) {
+    var rMin = 255, rMax = 0, gMin = 255, gMax = 0, bMin = 255, bMax = 0;
+    for (var pi = 0; pi < plist.length; pi++) {
+      var p = plist[pi];
+      if (p.r < rMin) rMin = p.r; if (p.r > rMax) rMax = p.r;
+      if (p.g < gMin) gMin = p.g; if (p.g > gMax) gMax = p.g;
+      if (p.b < bMin) bMin = p.b; if (p.b > bMax) bMax = p.b;
+    }
+    return { pixels: plist, rMin: rMin, rMax: rMax, gMin: gMin, gMax: gMax, bMin: bMin, bMax: bMax };
+  }
+
+  function boxVolume(box) {
+    return (box.rMax - box.rMin + 1) * (box.gMax - box.gMin + 1) * (box.bMax - box.bMin + 1);
+  }
+
+  function splitBox(box) {
+    // Find the channel with the largest range
+    var rRange = box.rMax - box.rMin;
+    var gRange = box.gMax - box.gMin;
+    var bRange = box.bMax - box.bMin;
+    var channel = 'r';
+    var maxRange = rRange;
+    if (gRange > maxRange) { channel = 'g'; maxRange = gRange; }
+    if (bRange > maxRange) { channel = 'b'; maxRange = bRange; }
+
+    // Sort by this channel
+    var sorted = box.pixels.slice().sort(function(a, b) { return a[channel] - b[channel]; });
+
+    // Split at median
+    var medianIdx = Math.floor(sorted.length / 2);
+    var left = sorted.slice(0, medianIdx);
+    var right = sorted.slice(medianIdx);
+
+    return [makeBox(left), makeBox(right)];
+  }
+
+  function averageColor(box) {
+    var sumR = 0, sumG = 0, sumB = 0;
+    for (var pi = 0; pi < box.pixels.length; pi++) {
+      sumR += box.pixels[pi].r;
+      sumG += box.pixels[pi].g;
+      sumB += box.pixels[pi].b;
+    }
+    var n = box.pixels.length;
+    return { r: sumR / n, g: sumG / n, b: sumB / n };
+  }
+
+  // Start with one big box
+  var boxes = [makeBox(pixels)];
+
+  // Keep splitting until we have enough boxes
+  while (boxes.length < numColors) {
+    // Find the box with the largest volume * pixel count (heuristic)
+    var bestIdx = -1;
+    var bestScore = -1;
+    for (var bi = 0; bi < boxes.length; bi++) {
+      var b = boxes[bi];
+      if (b.pixels.length < 2) continue; // Can't split a single pixel
+      var score = boxVolume(b) * b.pixels.length;
+      if (score > bestScore) { bestScore = score; bestIdx = bi; }
+    }
+
+    if (bestIdx === -1) break; // No more splittable boxes
+
+    var toSplit = boxes[bestIdx];
+    // Remove it and add the two halves
+    boxes.splice(bestIdx, 1);
+    var halves = splitBox(toSplit);
+    boxes.push(halves[0]);
+    boxes.push(halves[1]);
+  }
+
+  // Convert each box to its average color
+  var palette = [];
+  for (var bi = 0; bi < boxes.length; bi++) {
+    var avg = averageColor(boxes[bi]);
+    palette.push({
+      r: Math.round(avg.r),
+      g: Math.round(avg.g),
+      b: Math.round(avg.b)
+    });
+  }
+
+  return palette;
+}
+
+// ===== Match extracted palette colors to fixed palette =====
+// For each extracted color, find the closest fixed palette color.
+// This ensures the generated template works with the game's color system.
+
+function matchToFixedPalette(extractedPalette) {
+  var matched = [];
+  var usedFixed = {};
+  
+  for (var ei = 0; ei < extractedPalette.length; ei++) {
+    var ec = extractedPalette[ei];
+    var bestIdx = 1;
+    var bestDist = Infinity;
+    
+    for (var fi = 1; fi < FIXED_RGB.length; fi++) {
+      if (!FIXED_RGB[fi]) continue;
+      var d = colorDistance(ec, FIXED_RGB[fi]);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = fi;
+      }
+    }
+    
+    matched.push({ index: bestIdx, rgb: FIXED_RGB[bestIdx], name: FIXED_PALETTE[bestIdx].name });
+    usedFixed[bestIdx] = true;
+  }
+  
+  return { matched: matched, usedFixed: usedFixed };
+}
+
+// Floyd-Steinberg dithering using the matched palette
+function floydSteinberg(imgData, w, h, matchedPalette) {
+  var pixels = [];
+  for (var i = 0; i < imgData.length; i += 4) {
+    pixels.push({ r: imgData[i], g: imgData[i+1], b: imgData[i+2], a: imgData[i+3] });
+  }
+
+  var data = [];
+  var usedColors = {};
+
+  for (var y = 0; y < h; y++) {
+    var row = [];
+    for (var x = 0; x < w; x++) {
+      var idx = y * w + x;
+      var p = pixels[idx];
+      // Skip transparent pixels (PNG alpha)
+      if (p.a < 128) { row.push(0); continue; }
+      var cr = Math.max(0, Math.min(255, Math.round(p.r)));
+      var cg = Math.max(0, Math.min(255, Math.round(p.g)));
+      var cb = Math.max(0, Math.min(255, Math.round(p.b)));
+
+      // Find nearest in matched palette
+      var bestPalIdx = 0;
+      var bestDist = Infinity;
+      for (var pi = 0; pi < matchedPalette.length; pi++) {
+        var d = colorDistance({r: cr, g: cg, b: cb}, matchedPalette[pi].rgb);
+        if (d < bestDist) { bestDist = d; bestPalIdx = pi; }
+      }
+
+      var colorIdx = matchedPalette[bestPalIdx].index;
+      row.push(colorIdx);
+      usedColors[colorIdx] = true;
+
+      var q = matchedPalette[bestPalIdx].rgb;
+      var errR = cr - q.r;
+      var errG = cg - q.g;
+      var errB = cb - q.b;
+
+      // Distribute error (Floyd-Steinberg)
+      if (x + 1 < w) {
+        var ni = y * w + x + 1;
+        pixels[ni].r += errR * 7 / 16;
+        pixels[ni].g += errG * 7 / 16;
+        pixels[ni].b += errB * 7 / 16;
+      }
+      if (y + 1 < h) {
+        if (x > 0) {
+          var ni = (y + 1) * w + x - 1;
+          pixels[ni].r += errR * 3 / 16;
+          pixels[ni].g += errG * 3 / 16;
+          pixels[ni].b += errB * 3 / 16;
+        }
+        var ni = (y + 1) * w + x;
+        pixels[ni].r += errR * 5 / 16;
+        pixels[ni].g += errG * 5 / 16;
+        pixels[ni].b += errB * 5 / 16;
+        if (x + 1 < w) {
+          var ni = (y + 1) * w + x + 1;
+          pixels[ni].r += errR * 1 / 16;
+          pixels[ni].g += errG * 1 / 16;
+          pixels[ni].b += errB * 1 / 16;
+        }
+      }
+    }
+    data.push(row);
+  }
+
+  return { data: data, usedColors: usedColors };
+}
+
+function generatePattern() {
+  if (!uploadedImage) return;
+  var gridSize = parseInt(document.getElementById('gridSizeSelect').value);
+  var numColors = parseInt(document.getElementById('colorCountSlider').value);
+
+  var tempCanvas = document.createElement('canvas');
+  tempCanvas.width = gridSize;
+  tempCanvas.height = gridSize;
+  var ctx = tempCanvas.getContext('2d');
+  // Use a larger intermediate size for better color sampling
+  var sampleSize = Math.min(160, Math.max(gridSize * 2, 64));
+  var sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = sampleSize;
+  sampleCanvas.height = sampleSize;
+  var sCtx = sampleCanvas.getContext('2d');
+  sCtx.drawImage(uploadedImage, 0, 0, sampleSize, sampleSize);
+  var sampleData = sCtx.getImageData(0, 0, sampleSize, sampleSize).data;
+
+  // Extract dominant colors using median cut
+  var extractedColors = medianCutPalette(sampleData, sampleSize, sampleSize, numColors);
+  
+  // Match extracted colors to fixed palette
+  var matchResult = matchToFixedPalette(extractedColors);
+  var matchedPalette = matchResult.matched;
+  var usedFixedSet = matchResult.usedFixed;
+
+  // Draw full-resolution image for quantization
+  ctx.drawImage(uploadedImage, 0, 0, gridSize, gridSize);
+  var imgData = ctx.getImageData(0, 0, gridSize, gridSize).data;
+
+  // Apply Floyd-Steinberg dithering with the matched palette
+  var result = floydSteinberg(imgData, gridSize, gridSize, matchedPalette);
+  var data = result.data;
+  var usedColors = result.usedColors;
+
+  generatedData = { data: data, gridSize: gridSize, usedColors: usedColors, matchedPalette: matchedPalette, extractedColors: extractedColors };
+
+  // Render preview
+  var previewCanvas = document.getElementById('patternPreview');
+  var psize = Math.min(400, gridSize * 10);
+  previewCanvas.width = psize;
+  previewCanvas.height = psize;
+  var pctx = previewCanvas.getContext('2d');
+  var cellSz = psize / gridSize;
+
+  pctx.fillStyle = '#fafafa';
+  pctx.fillRect(0, 0, psize, psize);
+
+  for (var r = 0; r < gridSize; r++) {
+    for (var c = 0; c < gridSize; c++) {
+      var v = data[r][c];
+      if (v > 0) {
+        pctx.fillStyle = FIXED_PALETTE[v].hex;
+        var hs = cellSz * 0.40;
+        pctx.beginPath();
+        pctx.roundRect(c * cellSz + cellSz/2 - hs, r * cellSz + cellSz/2 - hs, hs*2, hs*2, 2);
+        pctx.fill();
+      }
+    }
+  }
+
+  var totalBeads = 0;
+  var colorNames = [];
+  var colorKeys = Object.keys(usedColors).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  for (var i = 0; i < colorKeys.length; i++) {
+    var ci = parseInt(colorKeys[i]);
+    var cnt = 0;
+    for (var r = 0; r < gridSize; r++)
+      for (var c = 0; c < gridSize; c++)
+        if (data[r][c] === ci) cnt++;
+    totalBeads += cnt;
+    if (FIXED_PALETTE[ci]) colorNames.push(FIXED_PALETTE[ci].name + '×' + cnt);
+  }
+
+  document.getElementById('patternInfo').textContent = '🧩 ' + totalBeads + ' 颗豆 | ' + numColors + ' 色 | ' + colorNames.join(', ');
+  document.getElementById('adminPreview').style.display = 'block';
+  document.getElementById('addBtn').disabled = false;
+}
+
+// Ensure color variables exist in the game
+function ensureColorVars(usedSet) {
+  if (typeof window === 'undefined') return;
+  var hexValues = {};
+  for (var i = 1; i < FIXED_PALETTE.length; i++) {
+    if (FIXED_PALETTE[i]) hexValues[FIXED_PALETTE[i].name] = FIXED_PALETTE[i].hex;
+  }
+  var missing = [];
+  var keys = Object.keys(usedSet);
+  for (var ki = 0; ki < keys.length; ki++) {
+    var ci = parseInt(keys[ki]);
+    if (ci > 0 && FIXED_PALETTE[ci] && typeof window[FIXED_PALETTE[ci].name] === 'undefined') {
+      missing.push(FIXED_PALETTE[ci].name);
+    }
+  }
+  if (missing.length > 0) {
+    var code = '';
+    for (var mi = 0; mi < missing.length; mi++) {
+      code += 'var ' + missing[mi] + ' = "' + hexValues[missing[mi]] + '";';
+    }
+    var s = document.createElement('script');
+    s.textContent = code;
+    document.body.appendChild(s);
+    // Also update ALL_COLORS
+    var allocCode = 'if (typeof ALL_COLORS !== "undefined") {';
+    for (var mi = 0; mi < missing.length; mi++) {
+      allocCode += 'if (ALL_COLORS.indexOf(' + missing[mi] + ')===-1) ALL_COLORS.push(' + missing[mi] + ');';
+    }
+    allocCode += '}';
+    var s2 = document.createElement('script');
+    s2.textContent = allocCode;
+    document.body.appendChild(s2);
+  }
+}
+
+// Scale data to fit 20×20 game board
+function scaleToGrid(data, srcSize) {
+  if (srcSize <= 20) return data;
+  var dstSize = 20;
+  var scaled = [];
+  for (var r = 0; r < dstSize; r++) {
+    var row = [];
+    for (var c = 0; c < dstSize; c++) {
+      var srcR = Math.min(Math.floor(r * srcSize / dstSize), srcSize - 1);
+      var srcC = Math.min(Math.floor(c * srcSize / dstSize), srcSize - 1);
+      row.push(data[srcR][srcC]);
+    }
+    scaled.push(row);
+  }
+  return scaled;
+}
+
+function addToGame() {
+  if (!generatedData) return;
+  var name = document.getElementById('levelNameInput').value.trim() || 'custom';
+  var finalName = name;
+  var counter = 1;
+  while (TEMPLATES[finalName]) {
+    finalName = name + '_' + counter;
+    counter++;
+  }
+
+  var colorsObj = {};
+  var colorKeys = Object.keys(generatedData.usedColors).sort(function(a,b){return parseInt(a)-parseInt(b);});
+  for (var i = 0; i < colorKeys.length; i++) {
+    var ci = parseInt(colorKeys[i]);
+    if (FIXED_PALETTE[ci]) colorsObj[ci] = FIXED_PALETTE[ci].hex;
+  }
+
+  TEMPLATES[finalName] = { data: generatedData.data, colors: colorsObj };
+  var gameGridSize = generatedData.gridSize;
+
+  if (TEMPLATE_ORDER.indexOf(finalName) === -1) {
+    TEMPLATE_ORDER.push(finalName);
+  }
+
+  var bar = document.querySelector('.template-bar');
+  var btn = document.createElement('button');
+  btn.className = 'tpl-btn';
+  btn.setAttribute('onclick', "pickTemplate('" + finalName + "')");
+  btn.textContent = '🖼 ' + finalName;
+  bar.insertBefore(btn, bar.querySelector('.admin-toggle'));
+
+  ensureColorVars(generatedData.usedColors);
+
+  var totalBeads = 0;
+  for (var r = 0; r < gameGridSize; r++)
+    for (var c = 0; c < gameGridSize; c++)
+      if (generatedData.data[r][c] > 0) totalBeads++;
+
+  pickTemplate(finalName);
+
+  document.getElementById('patternInfo').textContent = '✅ 已添加「' + finalName + '」(' + gameGridSize + '×' + gameGridSize + ', ' + totalBeads + ' 颗豆)';
+  document.getElementById('addBtn').disabled = true;
+
+  // Persist
+  if (CUSTOM_TEMPLATE_NAMES.indexOf(finalName) === -1) {
+    CUSTOM_TEMPLATE_NAMES.push(finalName);
+  }
+  saveCustomTemplates();
+}
+
+function saveCustomTemplates() {
+  var data = {};
+  for (var i = 0; i < CUSTOM_TEMPLATE_NAMES.length; i++) {
+    var name = CUSTOM_TEMPLATE_NAMES[i];
+    if (TEMPLATES[name]) data[name] = TEMPLATES[name];
+  }
+  try {
+    // Legacy format (backward compatible)
+    localStorage.setItem('puzzle_custom_templates', JSON.stringify(data));
+    localStorage.setItem('puzzle_custom_names', JSON.stringify(CUSTOM_TEMPLATE_NAMES));
+    // New versioned format (matching LevelManager in game.js)
+    var levelData = { version: 1, levels: data, order: CUSTOM_TEMPLATE_NAMES };
+    localStorage.setItem('puzzle_levels', JSON.stringify(levelData));
+  } catch(e) {}
+}
+
+function loadCustomTemplates() {
+  try {
+    var namesData = localStorage.getItem('puzzle_custom_names');
+    var templatesData = localStorage.getItem('puzzle_custom_templates');
+    if (!namesData || !templatesData) return;
+    var names = JSON.parse(namesData);
+    var templates = JSON.parse(templatesData);
+    CUSTOM_TEMPLATE_NAMES = [];
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      if (templates[name] && !TEMPLATES[name]) {
+        TEMPLATES[name] = ensureHexColors(templates[name]);
+        CUSTOM_TEMPLATE_NAMES.push(name);
+        TEMPLATE_ORDER.push(name);
+        // Add button to template bar
+        var bar = document.querySelector('.template-bar');
+        var btn = document.createElement('button');
+        btn.className = 'tpl-btn';
+        btn.setAttribute('onclick', "pickTemplate('" + name + "')");
+        btn.textContent = '🖼 ' + name;
+        bar.insertBefore(btn, bar.querySelector('.admin-toggle'));
+      }
+    }
+  } catch(e) {}
+}
+function refreshDeleteDropdown() {
+  var sel = document.getElementById('deleteLevelSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (var i = 0; i < TEMPLATE_ORDER.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = TEMPLATE_ORDER[i];
+    opt.textContent = TEMPLATE_ORDER[i];
+    sel.appendChild(opt);
+  }
+}
+
+function deleteSelectedLevel() {
+  var sel = document.getElementById('deleteLevelSelect');
+  var name = sel.value;
+  if (!name || !TEMPLATES[name]) return;
+  if (!confirm('确定要删除关卡「' + name + '」吗？')) return;
+
+  // Remove from TEMPLATES
+  delete TEMPLATES[name];
+
+  // Remove from TEMPLATE_ORDER
+  var idx = TEMPLATE_ORDER.indexOf(name);
+  if (idx > -1) TEMPLATE_ORDER.splice(idx, 1);
+
+  // Remove button from template-bar
+  var btns = document.querySelectorAll('.tpl-btn');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].getAttribute('onclick') && btns[i].getAttribute('onclick').indexOf("'" + name + "'") > -1) {
+      btns[i].remove();
+      break;
+    }
+  }
+
+  // If current was deleted, switch to first available
+  if (currentTemplate === name && TEMPLATE_ORDER.length > 0) {
+    pickTemplate(TEMPLATE_ORDER[0]);
+  } else if (TEMPLATE_ORDER.length > 0) {
+    startLevel();
+  }
+
+  // Remove from persisted if custom
+  var ci = CUSTOM_TEMPLATE_NAMES.indexOf(name);
+  if (ci > -1) { CUSTOM_TEMPLATE_NAMES.splice(ci, 1); saveCustomTemplates(); }
+
+  refreshDeleteDropdown();
+
+  document.getElementById('patternInfo').textContent = '✅ 已删除关卡「' + name + '」';
+  document.getElementById('patternInfo').style.display = 'block';
+}
+
+// Refresh dropdown when admin panel opens
+function openAdmin() {
+  document.getElementById('adminOverlay').classList.add('show');
+  refreshDeleteDropdown();
+}function checkVictory() {
+  for (var r = 0; r < GRID; r++)
+    for (var c = 0; c < GRID; c++)
+      if (targetGrid[r][c] && boardGrid[r][c] !== targetGrid[r][c]) return;
+  stopTimer();
+  setTimeout(function() {
+    document.getElementById('victoryScore').textContent = '🌟 完美通关 🌟';
+    document.getElementById('victoryOverlay').classList.add('show');
+  }, 300);
+}
+
+
+function exportPatternData() {
+  if (CUSTOM_TEMPLATE_NAMES.length === 0) {
+    alert('没有自定义图案可以导出。请先上传图片并添加到游戏。');
+    return;
+  }
+  var data = {};
+  for (var i = 0; i < CUSTOM_TEMPLATE_NAMES.length; i++) {
+    var name = CUSTOM_TEMPLATE_NAMES[i];
+    if (TEMPLATES[name]) data[name] = TEMPLATES[name];
+  }
+  var json = JSON.stringify(data, null, 2);
+  // Download as file
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'puzzle_patterns_export.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  // Also copy to clipboard
+  try {
+    navigator.clipboard.writeText(json);
+    var info = document.getElementById('patternInfo');
+    info.textContent = '✅ 已导出 ' + CUSTOM_TEMPLATE_NAMES.length + ' 个图案，JSON 已复制到剪贴板！在微信开发者工具控制台执行：\nwx.setStorageSync("puzzle_custom_templates", ' + JSON.stringify(data) + ');\nwx.setStorageSync("puzzle_test_index", 0);';
+    info.style.display = 'block';
+    alert('图案数据已导出为JSON文件下载，同时已复制到剪贴板。\n\n在微信开发者工具中执行以下命令即可同步到小游戏：\n\nvar d = ' + JSON.stringify(data) + ';\nwx.setStorageSync("puzzle_custom_templates", d);\nwx.setStorageSync("puzzle_test_index", 0);');
+  } catch(e) {}
+}
+
+
+function publishLevels() {
+  if (CUSTOM_TEMPLATE_NAMES.length === 0) {
+    alert('没有自定义图案可以发布。请先上传图片并添加到游戏。');
+    return;
+  }
+  var data = {};
+  for (var i = 0; i < CUSTOM_TEMPLATE_NAMES.length; i++) {
+    var name = CUSTOM_TEMPLATE_NAMES[i];
+    if (TEMPLATES[name]) data[name] = ensureHexColors(JSON.parse(JSON.stringify(TEMPLATES[name])));
+  }
+  var levelData = { version: 1, levels: data, order: CUSTOM_TEMPLATE_NAMES };
+  var json = JSON.stringify(levelData, null, 2);
+  
+  // Download published_levels.json (for auto-load in mini-games)
+  var blob = new Blob([json], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'published_levels.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  
+  // Also keep the legacy download
+  var a2 = document.createElement('a');
+  a2.href = url;
+  a2.download = 'puzzle_levels_v1.json';
+  a2.click();
+  URL.revokeObjectURL(url);
+  
+  // Copy publish code to clipboard (backup)
+  try {
+    navigator.clipboard.writeText(json);
+    var pubSection = document.getElementById('publishSection');
+    var pubInfo = document.getElementById('publishInfo');
+    pubSection.style.display = 'block';
+    
+    var colorSet = new Set();
+    for (var key in data) {
+      var colors = data[key].colors;
+      for (var ck in colors) colorSet.add(colors[ck]);
+    }
+    
+    var wxCode = 'wx.setStorageSync("puzzle_levels", ' + json + '); reloadLevelsFromStorage();'
+    var dyCode = 'tt.setStorageSync("puzzle_levels", ' + json + '); reloadLevelsFromStorage();'
+    
+    pubInfo.innerHTML = 
+      '<div style="margin-bottom:6px">✅ 已发布 <b>' + CUSTOM_TEMPLATE_NAMES.length + '</b> 个关卡</div>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:4px">已下载 <b>published_levels.json</b></div>' +
+      '<div style="font-size:11px;color:#999;margin-bottom:8px">' +
+      CUSTOM_TEMPLATE_NAMES.length + ' 个图案 | ' + colorSet.size + ' 种颜色</div>' +
+      '<div style="background:#e8f5e9;border-radius:6px;padding:10px;margin-bottom:8px;border:1px solid #a5d6a7">' +
+      '<div style="font-size:12px;color:#2e7d32;font-weight:bold">📌 自动加载方式（推荐）</div>' +
+      '<div style="font-size:11px;color:#555;margin-top:4px;line-height:1.5">' +
+      '1. 将下载的 <b>published_levels.json</b> 复制到项目目录：<br>' +
+      '&nbsp;&nbsp;📁 <code>wechat-game/published_levels.json</code><br>' +
+      '&nbsp;&nbsp;📁 <code>douyin-game/published_levels.json</code><br>' +
+      '2. 在开发者工具中按 <b>Ctrl+R</b> 重新编译<br>' +
+      '3. 游戏将自动加载最新的关卡 🎉' +
+      '</div>' +
+      '<div style="margin-top:6px;font-size:11px;color:#888">💡 保存一次后，后续只需 <b>发布→覆盖文件→Ctrl+R</b></div>' +
+      '</div>' +
+      '<div style="margin-top:10px;background:#fff8e1;border-radius:6px;padding:10px;border:1px solid #ffe082">' +
+      '<div style="font-size:12px;color:#e65100;font-weight:bold">☁️ 上线后用 CDN 远程加载（无需重新提审）</div>' +
+      '<div style="font-size:11px;color:#555;margin-top:4px;line-height:1.5">' +
+      '将 <b>published_levels.json</b> 上传到任意静态文件托管（如 GitHub Pages、Cloudflare Pages），<br>' +
+      '然后在游戏代码中设置远程地址：<br>' +
+      '&nbsp;&nbsp;📄 <code>wechat-game/game.js</code> → 修改 <b>apiBaseUrl</b><br>' +
+      '&nbsp;&nbsp;📄 <code>douyin-game/game.js</code> → 修改 <b>LEVELS_CDN_URL</b><br>' +
+      '以后发布新关卡只需 <b>替换服务器上的 JSON 文件</b>，玩家重启游戏自动获取最新关卡 🚀' +
+      '</div>' +
+      '<div style="margin-top:6px;font-size:11px;color:#999">💡 开发时用本地文件，上线后切到 CDN 地址即可无缝升级</div>' +
+      '</div>' +
+'<div style="font-size:12px;color:#333;margin-bottom:2px">🔄 备用：手动同步到小游戏 Console：</div>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:2px">▸ 微信：</div>' +
+      '<div style="background:#f3e5f5;border-radius:6px;padding:6px 8px;font-size:10px;font-family:monospace;word-break:break-all;margin-top:2px;margin-bottom:4px;border:1px solid #ce93d8;max-height:60px;overflow:auto" id="publishCode">' +
+      wxCode.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+      '</div>' +
+      '<div style="font-size:11px;color:#888;margin-bottom:2px">▸ 抖音：</div>' +
+      '<div style="background:#fff3e0;border-radius:6px;padding:6px 8px;font-size:10px;font-family:monospace;word-break:break-all;margin-top:2px;margin-bottom:4px;border:1px solid #ffcc80;max-height:60px;overflow:auto" id="publishCodeDY">' +
+      dyCode.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
+      '</div>' +
+      '<button onclick="copyPublishCode()" style="padding:3px 10px;border:none;border-radius:4px;background:#9c27b0;color:#fff;cursor:pointer;font-size:11px">📋 复制微信代码</button>' +
+      '<button onclick="copyPublishCodeDY()" style="margin-left:4px;padding:3px 10px;border:none;border-radius:4px;background:#ff9800;color:#fff;cursor:pointer;font-size:11px">📋 复制抖音代码</button>';
+  } catch(e) {}
+}
+init();
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

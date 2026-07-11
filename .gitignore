@@ -1,0 +1,13 @@
+﻿node_modules/
+*.zip
+*.7z
+.vs/
+.vscode/
+.DS_Store
+Thumbs.db
+tmp_check.js
+restore_*.ps1
+git-portable/
+.githome/
+git.cmd
+拼豆小游戏图标.png
