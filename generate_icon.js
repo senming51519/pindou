@@ -1,4 +1,5 @@
-﻿const fs = require("fs");
+const fs = require("fs");
+const path = require("path");
 const zlib = require("zlib");
 
 function crc32(data) {
@@ -82,7 +83,7 @@ const C = [
   [60,60,60],    [150,200,255],
 ];
 
-// ============ Cat pixel art (14x14) — filled background ============
+// ============ Cat pixel art (14x14) �� filled background ============
 // 0=transparent, 1=red, 2=orange, 3=yellow, 4=green,
 // 5=blue, 6=purple, 7=pink, 8=white, 9=dark gray, 10=light blue
 // All background cells now filled with white (8)
@@ -186,6 +187,6 @@ for (let i = 0; i < 6; i++) {
 }
 
 const png = createPNG(W, H, pix);
-const outPath = "C:\\Users\\彭森明\\Documents\\拼豆小游戏\\拼豆小游戏图标.png";
+const outPath = process.env.OUTPUT_PATH || path.join(__dirname, "pindou_icon.png");
 fs.writeFileSync(outPath, png);
 console.log("Done! " + (png.length/1024).toFixed(1) + " KB -> " + outPath);

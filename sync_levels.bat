@@ -1,7 +1,7 @@
-@echo off
+ï»¿@echo off
 chcp 65001 >nul
 echo ========================================
-echo   Æ´¶¹Ğ¡ÓÎÏ· - ¹Ø¿¨Í¬²½¹¤¾ß
+echo   æ‹¼è±†å°æ¸¸æˆ - å…³å¡åŒæ­¥å·¥å…·
 echo ========================================
 echo.
 
@@ -9,29 +9,29 @@ set "SOURCE=%USERPROFILE%\Downloads\published_levels.json"
 set "PROJECT_DIR=%~dp0"
 
 if not exist "%SOURCE%" (
-    echo [´íÎó] Î´ÕÒµ½ published_levels.json
+    echo [æç¤º] æœªæ‰¾åˆ° published_levels.json
     echo.
-    echo ÇëÏÈÔÚ PC ¹ÜÀí¶Ëµã»÷"·¢²¼¹Ø¿¨"ÏÂÔØ¸ÃÎÄ¼ş¡£
+    echo è¯·å…ˆåœ¨ PC ç®¡ç†åå°ç‚¹å‡»"å‘å¸ƒå…³å¡"ä¸‹è½½è¯¥æ–‡ä»¶ã€‚
     echo.
     pause
     exit /b 1
 )
 
-echo [ĞÅÏ¢] ÕÒµ½¹Ø¿¨Êı¾İÎÄ¼ş
+echo [ä¿¡æ¯] æ‰¾åˆ°å…³å¡æ•°æ®æ–‡ä»¶
 echo.
 
-echo [ĞÅÏ¢] ¸´ÖÆµ½Î¢ĞÅ°æ...
+echo [ä¿¡æ¯] å¤åˆ¶åˆ°å¾®ä¿¡ç‰ˆ...
 copy /Y "%SOURCE%" "%PROJECT_DIR%wechat-game\published_levels.json" >nul
-if %errorlevel% equ 0 ( echo [³É¹¦] wechat-game/published_levels.json ) else ( echo [Ê§°Ü] ¸´ÖÆÊ§°Ü )
+if %errorlevel% equ 0 ( echo [æˆåŠŸ] wechat-game/published_levels.json ) else ( echo [å¤±è´¥] å¤åˆ¶å¤±è´¥ )
 
-echo [ĞÅÏ¢] ¸´ÖÆµ½¶¶Òô°æ...
+echo [ä¿¡æ¯] å¤åˆ¶åˆ°æŠ–éŸ³ç‰ˆ...
 copy /Y "%SOURCE%" "%PROJECT_DIR%douyin-game\published_levels.json" >nul
-if %errorlevel% equ 0 ( echo [³É¹¦] douyin-game/published_levels.json ) else ( echo [Ê§°Ü] ¸´ÖÆÊ§°Ü )
+if %errorlevel% equ 0 ( echo [æˆåŠŸ] douyin-game/published_levels.json ) else ( echo [å¤±è´¥] å¤åˆ¶å¤±è´¥ )
 
 echo.
 echo ========================================
-echo [Íê³É] Í¬²½³É¹¦£¡
+echo [å®Œæˆ] åŒæ­¥æˆåŠŸï¼
 echo.
-echo ½ÓÏÂÀ´ÇëÔÚ¿ª·¢Õß¹¤¾ßÖĞ°´ Ctrl+R ÖØĞÂ±àÒë
+echo è¯·åœ¨å¼€å‘è€…å·¥å…·ä¸­æŒ‰ Ctrl+R é‡æ–°ç¼–è¯‘ã€‚
 echo.
 pause

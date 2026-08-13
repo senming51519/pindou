@@ -11,3 +11,9 @@ git-portable/
 .githome/
 git.cmd
 拼豆小游戏图标.png
+
+# Temporary junk files
+/0
+/17051
+*.bak
+/work_icons_preview.png

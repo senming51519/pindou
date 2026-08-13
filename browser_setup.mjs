@@ -1,4 +1,4 @@
-﻿const { setupBrowserRuntime } = await import("C:\\Users\\彭森明\\.codex\\plugins\\cache\\openai-bundled\\browser\\26.609.41114\\scripts\\browser-client.mjs");
+const { setupBrowserRuntime } = await import(process.env.BROWSER_CLIENT_PATH || "browser-client.mjs");
 await setupBrowserRuntime({ globals: globalThis });
 globalThis.browser = await agent.browsers.get("iab");
 const doc = await browser.documentation();
