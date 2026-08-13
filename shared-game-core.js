@@ -1,4 +1,4 @@
-﻿﻿// game.js - 拼豆配对 微信小游戏版
+﻿// game.js - 拼豆配对 微信小游戏版
 
 var _g = typeof GameGlobal !== 'undefined' ? GameGlobal : (typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {}));
 var GamePlatform = _g.GamePlatform;
@@ -735,15 +735,15 @@ function initAudio() {
 
     sfxPlace = GamePlatform.createInnerAudioContext()
 
-    sfxPlace.src = 'place.wav'
+    sfxPlace.src = 'place.mp3'
 
     sfxMove = GamePlatform.createInnerAudioContext()
 
-    sfxMove.src = 'move.wav'
+    sfxMove.src = 'move.mp3'
 
     sfxWin = GamePlatform.createInnerAudioContext()
 
-    sfxWin.src = 'win.wav'
+    sfxWin.src = 'win.mp3'
 
   } catch(e) { console.log('Audio:', e) }
 

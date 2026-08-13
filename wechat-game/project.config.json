@@ -24,7 +24,12 @@
   "compileType": "game",
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "file",
+        "value": "*.bak"
+      }
+    ],
     "include": []
   },
   "isGameTourist": false,
