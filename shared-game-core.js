@@ -34,6 +34,7 @@ ctx.fillStyle = '#f0f0f8';
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 var SAFE_TOP = (sys.safeArea && sys.safeArea.top) || 0
+var SAFE_BOTTOM = (sys.safeArea && sys.safeArea.bottom) || H
 
 function roundRect(ctx, x, y, w, h, r) {
 
@@ -122,7 +123,7 @@ var TOP_OFFSET = 72
 
 var SLOT_CELL = Math.min(28, (W - PAD * 2) / SLOT_COLS)
 
-var SLOT_TOP = H - 92 - SLOT_ROWS * (SLOT_CELL + 3)
+var SLOT_TOP = SAFE_BOTTOM - 70 - SLOT_ROWS * (SLOT_CELL + 3)
 
 var BTN_TOP = SLOT_TOP + SLOT_ROWS * (SLOT_CELL + 3) + 8
 
@@ -147,7 +148,7 @@ var currentTemplate = 'heart'
 
 var TEST_SKIP_TO_INDEX = (GamePlatform._TEST_SKIP !== undefined) ? GamePlatform._TEST_SKIP : -1;
 
-var HIDE_LEVEL_SELECTOR = false;   // 显示底部关卡选择器（暂存区位置不变）
+var HIDE_LEVEL_SELECTOR = true;   // 隐藏底部关卡选择器（暂存区位置不变）
 var levelSelectorVisible = false;   // 当前是否展开关卡选择面板
 
 var ITEM_SIZE = 44
@@ -158,7 +159,7 @@ var itemUses = { magnet: 1, brush: 1, freeze: 1 }
 
 var itemDialog = null
 
-var currentPage = 'home'   // 'home' | 'game' | 'collection'
+var currentPage = 'loading'   // 'loading' | 'home' | 'game' | 'collection'
 
 var collectionPreview = null
 
@@ -2259,7 +2260,7 @@ function startLevel() {
     CELL = BOARD_SIZE / GRID;
     SLOT_ROWS = GRID > 40 ? 4 : (GRID > 20 ? 3 : 2);
     SLOT_CELL = Math.min(28, (W - PAD * 2) / SLOT_COLS);
-    SLOT_TOP = H - 92 - SLOT_ROWS * (SLOT_CELL + 3);
+    SLOT_TOP = SAFE_BOTTOM - 70 - SLOT_ROWS * (SLOT_CELL + 3);
     BTN_TOP = SLOT_TOP + SLOT_ROWS * (SLOT_CELL + 3) + 8;
     CY = Math.max(0, (SLOT_TOP - TOP_OFFSET - BOARD_SIZE) / 2);
   }
@@ -3319,6 +3320,120 @@ function drawCollectionPage() {
 
 // ===== Drawing =====
 
+// ===== Loading page =====
+
+var LOADING_MIN_MS = 1400
+var LOADING_MAX_MS = 3000
+var loadingProgress = 0
+var loadingTimer = null
+
+function startLoading() {
+  loadingProgress = 0
+  draw()
+  if (loadingTimer) clearInterval(loadingTimer)
+  var startT = Date.now()
+  loadingTimer = setInterval(function() {
+    var elapsed = Date.now() - startT
+    loadingProgress = Math.min(100, elapsed / LOADING_MIN_MS * 100)
+    draw()
+    var ready = homeBookImage.loaded || elapsed >= LOADING_MAX_MS
+    if (elapsed >= LOADING_MIN_MS && ready) {
+      clearInterval(loadingTimer)
+      loadingTimer = null
+      gotoHome()
+    }
+  }, 33)
+}
+
+function drawLoadingPage() {
+  var grad = ctx.createLinearGradient(0, 0, 0, H)
+  grad.addColorStop(0, "#F6EEFB")
+  grad.addColorStop(1, "#FDF6E8")
+  ctx.fillStyle = grad
+  ctx.fillRect(0, 0, W, H)
+
+  // Soft decorative circles
+  ctx.fillStyle = "rgba(156,39,176,0.06)"
+  ctx.beginPath()
+  ctx.arc(W * 0.12, H * 0.18, 46, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(W * 0.9, H * 0.82, 58, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = "rgba(255,214,102,0.10)"
+  ctx.beginPath()
+  ctx.arc(W * 0.88, H * 0.14, 34, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.beginPath()
+  ctx.arc(W * 0.1, H * 0.86, 40, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Title
+  drawTextOutline("拼豆配对", W / 2, H * 0.32, "bold 42px sans-serif", "#7C4DFF", "#FFFFFF", 7, "center", "middle")
+  drawTextOutline("PINDOU MATCH", W / 2, H * 0.32 + 40, "bold 13px sans-serif", "#B39DF0", "#FFFFFF", 3, "center", "middle")
+
+  // Bouncing bead logo
+  var beadColors = [RED, ORANGE, "#FFD54F", GREEN, BLUE, PURPLE, PINK]
+  var beadR = 13
+  var beadGap = 16
+  var totalW = beadColors.length * beadR * 2 + (beadColors.length - 1) * beadGap
+  var bx = (W - totalW) / 2 + beadR
+  var baseY = H * 0.52
+  var wave = loadingProgress / 100 * Math.PI * 2
+  for (var bi = 0; bi < beadColors.length; bi++) {
+    var cx2 = bx + bi * (beadR * 2 + beadGap)
+    var off = Math.sin(wave - bi * 0.55) * 5
+    ctx.fillStyle = "rgba(0,0,0,0.10)"
+    ctx.save()
+    ctx.translate(cx2, baseY + beadR + 5)
+    ctx.scale(1, 0.32)
+    ctx.beginPath()
+    ctx.arc(0, 0, beadR * 0.9, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+    var g = ctx.createRadialGradient(cx2 - 4, baseY - 4, 2, cx2, baseY, beadR + 2)
+    g.addColorStop(0, "#FFFFFF")
+    g.addColorStop(0.35, beadColors[bi])
+    g.addColorStop(1, hexA(beadColors[bi], 0.75))
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(cx2, baseY + off, beadR, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Progress bar
+  var barW = Math.min(240, W * 0.6)
+  var barH = 14
+  var barX = (W - barW) / 2
+  var barY = H * 0.66
+  ctx.fillStyle = "rgba(255,255,255,0.85)"
+  ctx.beginPath()
+  roundRect(ctx, barX, barY, barW, barH, barH / 2)
+  ctx.fill()
+  ctx.strokeStyle = "#E5D3F5"
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  roundRect(ctx, barX, barY, barW, barH, barH / 2)
+  ctx.stroke()
+  if (loadingProgress > 0) {
+    var grad2 = ctx.createLinearGradient(barX, barY, barX + barW, barY)
+    grad2.addColorStop(0, "#B39DF0")
+    grad2.addColorStop(1, "#7C4DFF")
+    ctx.fillStyle = grad2
+    ctx.beginPath()
+    roundRect(ctx, barX + 2, barY + 2, Math.max(4, (barW - 4) * loadingProgress / 100), barH - 4, (barH - 4) / 2)
+    ctx.fill()
+  }
+
+  // Percent + hint
+  drawTextOutline(Math.round(loadingProgress) + "%", W / 2, barY + barH + 26, "bold 15px sans-serif", "#7C4DFF", "#FFFFFF", 2.5, "center", "middle")
+  ctx.fillStyle = "#9B7ED4"
+  ctx.font = "13px sans-serif"
+  ctx.textAlign = "center"
+  ctx.textBaseline = "middle"
+  ctx.fillText("正在加载图案，马上就好~", W / 2, barY + barH + 50)
+  ctx.textBaseline = "alphabetic"
+}
 function draw() {
 
   ctx.clearRect(0, 0, W, H)
@@ -3326,6 +3441,13 @@ function draw() {
   ctx.fillStyle = "#f0f0f8"
 
   ctx.fillRect(0, 0, W, H)
+
+  // Loading page
+
+  if (currentPage === "loading") {
+    drawLoadingPage()
+    return
+  }
 
   // Home page
 
@@ -4002,6 +4124,8 @@ function draw() {
 var touchStartPos = null
 
 GamePlatform.onTouchStart(function(e) {
+
+  if (currentPage === "loading") return
 
   var t = e.touches[0]
 
@@ -4954,4 +5078,4 @@ if (TEST_SKIP_TO_INDEX < 0) {
     }
   } catch (e) {}
 }
-try { initAudio(); playBgm(); draw() } catch(e) { GamePlatform.showModal({ title:"启动失败", content:e.message||String(e), showCancel:false }) }
+try { initAudio(); playBgm(); startLoading() } catch(e) { GamePlatform.showModal({ title:"启动失败", content:e.message||String(e), showCancel:false }) }
