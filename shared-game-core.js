@@ -1918,11 +1918,11 @@ function drawItemIconFreezeFallback(x, y, s) {
 
 }
 
-function startTimer() {
+function startTimer(resetTime) {
 
   stopTimer()
 
-  timeLeft = 180
+  if (resetTime !== false) timeLeft = 180
 
   gameOverActive = false
 
@@ -2012,7 +2012,7 @@ function initRewardAd() {
 
         timerStarted = true
 
-        startTimer()
+        startTimer(false)
 
         draw()
 
@@ -2151,7 +2151,8 @@ function gotoHome() {
 
   stopTimer()
 
-  refundHeartOnWin()
+  // Returning home abandons the current challenge, so its spent heart is not refunded.
+  pendingHeart = false
 
   currentPage = 'home'
 
@@ -2249,6 +2250,9 @@ function refundHeartOnWin() {
 function startLevel() {
 
   saveCurrentLevel(currentTemplate)
+
+  // A new attempt at the same level must be allowed to settle its own win reward.
+  lastMarkedLevel = null
 
   var tmpl = TEMPLATES[currentTemplate]
 
@@ -3134,7 +3138,11 @@ function drawCollectionPage() {
 
   ctx.textAlign = "center"
 
-  ctx.fillText("< 返回", backX + backW/2, backY + backH/2 + 5)
+  ctx.textBaseline = "middle"
+
+  ctx.fillText("< 返回", backX + backW/2, backY + backH/2)
+
+  ctx.textBaseline = "alphabetic"
 
   var clist = getCompletedLevels()
 
