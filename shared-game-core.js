@@ -682,6 +682,8 @@ var AD_UNIT_ID = 'your_ad_unit_id'
 
 var adEnabled = false // 寮€鍙戦樁娈甸殣钘忓箍鍛婃寜閽紝涓婄嚎鍚庢敼涓簍rue
 
+var DAILY_ITEM_REWARD_KEY = "puzzle_daily_item_reward"
+
 // ===== Audio =====
 
 var bgm, sfxPlace, sfxMove, sfxWin
@@ -964,12 +966,13 @@ function drawItemDialog() {
   ctx.font = "bold 16px sans-serif"
   ctx.fillText(used ? "\u5df2\u4f7f\u7528" : (count > 1 ? "\u4f7f\u7528 \u00d7 " + count : "\u4f7f\u7528"), lay.cardX + lay.cardW / 2, lay.useY + lay.useH / 2 + 1)
 
-  // Video button (watch ad to gain one more use)
+  // Reward button (daily check-in until rewarded ads are enabled)
+  var dailyRewardClaimed = !adEnabled && isDailyItemRewardClaimed(itemDialog.key)
   ctx.save()
   ctx.shadowColor = "rgba(240, 150, 80, 0.35)"
   ctx.shadowBlur = 12
   ctx.shadowOffsetY = 4
-  ctx.fillStyle = "#F5A65B"
+  ctx.fillStyle = dailyRewardClaimed ? "#C9C2D6" : "#F5A65B"
   ctx.beginPath()
   roundRect(ctx, lay.vidX, lay.vidY, lay.vidW, lay.vidH, 22)
   ctx.fill()
@@ -977,13 +980,17 @@ function drawItemDialog() {
 
   ctx.fillStyle = "#FFFFFF"
   ctx.font = "bold 16px sans-serif"
-  ctx.beginPath()
-  ctx.moveTo(lay.vidX + 34, lay.vidY + lay.vidH / 2 - 7)
-  ctx.lineTo(lay.vidX + 34, lay.vidY + lay.vidH / 2 + 7)
-  ctx.lineTo(lay.vidX + 46, lay.vidY + lay.vidH / 2)
-  ctx.closePath()
-  ctx.fill()
-  ctx.fillText("\u770b\u89c6\u9891 +1", lay.cardX + lay.cardW / 2 + 8, lay.vidY + lay.vidH / 2 + 1)
+  if (adEnabled) {
+    ctx.beginPath()
+    ctx.moveTo(lay.vidX + 34, lay.vidY + lay.vidH / 2 - 7)
+    ctx.lineTo(lay.vidX + 34, lay.vidY + lay.vidH / 2 + 7)
+    ctx.lineTo(lay.vidX + 46, lay.vidY + lay.vidH / 2)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillText("\u770b\u89c6\u9891 +1", lay.cardX + lay.cardW / 2 + 8, lay.vidY + lay.vidH / 2 + 1)
+  } else {
+    ctx.fillText(dailyRewardClaimed ? "\u4eca\u65e5\u5df2\u9886\u53d6" : "\u6bcf\u65e5\u7b7e\u5230 +1", lay.cardX + lay.cardW / 2, lay.vidY + lay.vidH / 2 + 1)
+  }
   ctx.textBaseline = "alphabetic"
 }
 
@@ -2062,7 +2069,62 @@ function grantItemAdReward(key) {
 
 }
 
-function watchItemAd(key) {
+function loadDailyItemRewards() {
+
+  try {
+
+    var claim = GamePlatform.getStorageSync(DAILY_ITEM_REWARD_KEY)
+    if (typeof claim === "string") claim = JSON.parse(claim)
+    if (!claim || claim.date !== todayStr()) return { date: todayStr(), items: {} }
+    if (!claim.items || typeof claim.items !== "object") claim.items = {}
+    // Migrate the previous single-item daily claim format.
+    if (claim.item && itemUses[claim.item] !== undefined) claim.items[claim.item] = true
+    return claim
+
+  } catch (e) {
+
+    return { date: todayStr(), items: {} }
+
+  }
+
+}
+
+function isDailyItemRewardClaimed(key) {
+
+  var claim = loadDailyItemRewards()
+  return !!claim.items[key]
+
+}
+
+function claimDailyItemReward(key) {
+
+  if (itemUses[key] === undefined) return
+
+  var claim = loadDailyItemRewards()
+  if (claim.items[key]) {
+    try { GamePlatform.showToast({ title: "今日已领取", icon: "none" }) } catch (e) {}
+    draw()
+    return
+  }
+
+  try {
+
+    claim.items[key] = true
+    GamePlatform.setStorageSync(DAILY_ITEM_REWARD_KEY, claim)
+
+  } catch (e) {
+
+    try { GamePlatform.showToast({ title: "领取失败，请重试", icon: "none" }) } catch (err) {}
+    return
+
+  }
+
+  grantItemAdReward(key)
+  try { GamePlatform.showToast({ title: "领取成功", icon: "success" }) } catch (e) {}
+
+}
+
+function requestItemReward(key) {
 
   if (adEnabled) {
 
@@ -2072,9 +2134,9 @@ function watchItemAd(key) {
 
   } else {
 
-    // dev mode: simulate finished ad
+    // Before ad monetization is enabled, allow each item to be claimed once per day.
 
-    grantItemAdReward(key)
+    claimDailyItemReward(key)
 
   }
 
@@ -4261,7 +4323,7 @@ GamePlatform.onTouchEnd(function(e) {
       return
     }
     if (tx >= dlay.vidX && tx <= dlay.vidX + dlay.vidW && ty >= dlay.vidY && ty <= dlay.vidY + dlay.vidH) {
-      watchItemAd(itemDialog.key)
+      requestItemReward(itemDialog.key)
       draw()
       return
     }
